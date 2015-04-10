@@ -12,7 +12,7 @@ open import lib.Nullary
 Nat : Type
 Nat []       = false
 Nat (c ∷ cs) =
-    toBool (c Char.≟ 'Z')
+    toBool (c Char.≟ 'Z') ∧ null cs 
   ∨ toBool (c Char.≟ 'S') ∧ Nat cs
 
 `zero : valOfType Nat
@@ -29,7 +29,7 @@ NatRec {P} pz ps = uncurry go
     go : (cs : String) (prcs : cs ofType Nat) → valOfType P
     go []       ()
     go (c ∷ cs) prcs =
-      (dec′ (λ d → (T $ toBool d ∨ toBool (c Char.≟ 'S') ∧ Nat cs) → valOfType P)
+      (dec′ (λ d → (T $ toBool d ∧ null cs ∨ toBool (c Char.≟ 'S') ∧ Nat cs) → valOfType P)
             (c Char.≟ 'Z') (λ d pr → pz) $ const $
        dec′ (λ d → (T $ toBool d ∧ Nat cs) → valOfType P)
             (c Char.≟ 'S') (const $ ps ∘ go cs) (const $ λ ())
