@@ -3,6 +3,7 @@ module Acme.Data.Nat where
 open import Data.List
 open import Data.Char as Char
 open import Data.Bool
+open import Data.Product
 open import Acme.Data.Type
 
 open import Data.Nat as ℕ hiding (eq?)
@@ -21,30 +22,30 @@ Nat (c ∷ cs) =
   dec (c Char.≟ 'Z') (const true) $ const $
   dec (c Char.≟ 'S') (const $ Nat cs) (const false)
 
-`zero : List Char
-`zero = 'Z' ∷ []
+`zero : valOfType Nat
+`zero = ('Z' ∷ [] , _)
 
-`succ : List Char → List Char
-`succ n = 'S' ∷ n
+`succ : Nat ⟶ Nat
+`succ (n , prn) = ('S' ∷ n , prn)
 
-Nat-ind :
-  {P : Set} (pz : P) (ps : P → P)
-  (cs : List Char) (prcs : cs ofType Nat) → P
-Nat-ind {P} pz ps = go
+NatRec :  {P : Type} (pz : valOfType P) (ps : P ⟶ P)
+  (cs : valOfType Nat) → valOfType P
+NatRec {P} pz ps = uncurry go
   where
-    go : (cs : List Char) (prcs : cs ofType Nat) → P
+    go : (cs : String) (prcs : cs ofType Nat) → valOfType P
     go []       ()
     go (c ∷ cs) prcs =
-      (dec′ (λ d → (pr : T $ dec d (const true) $ const $ dec(c Char.≟ 'S') (const $ Nat cs) (const false)) → P)
+      (dec′ (λ d → (pr : T $ dec d (const true) $ const $ dec(c Char.≟ 'S') (const $ Nat cs) (const false)) → valOfType P)
             (c Char.≟ 'Z') (λ d pr → pz) $ const $
-            dec′ (λ d → T (dec d (const $ Nat cs) (const false)) → P)
+            dec′ (λ d → T (dec d (const $ Nat cs) (const false)) → valOfType P)
             (c Char.≟ 'S') (const $ ps ∘ go cs) (const $ λ ())
       ) prcs
 
-add : (m : List Char) (prm : m ofType Nat)
-      (n : List Char) (prn : n ofType Nat) → List Char
-add m prm n prn = Nat-ind n `succ m prm
+add : valOfType Nat → Nat ⟶ Nat
+add m = λ n → NatRec n `succ m
 
-`3+2 : List Char
-`3+2 = add (`succ $ `succ $ `succ `zero) _ (`succ $ `succ `zero) _
+import Data.String as Str
+
+`3+2 : valOfType Nat
+`3+2 = add (Str.toList "SSSZ" , _) (Str.toList "SSZ" , _)
 
