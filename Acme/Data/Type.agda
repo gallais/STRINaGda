@@ -20,3 +20,10 @@ valOfType A = Σ[ str ∈ String ] (str ofType A)
 
 _⟶_ : Type → Type → Set
 A ⟶ B = valOfType A → valOfType B
+
+import Data.String as Str
+
+infix 0 !_!
+!_! : {A : Type} (a : Str.String) {pr : Str.toList a ofType A} →
+      valOfType A
+! a ! {pr} = Str.toList a , pr
