@@ -3,7 +3,7 @@ module Acme.Data.Type where
 open import Level
 
 record One : Set where
-  constructor *
+  constructor one
 
 data Zero : Set where
 
@@ -15,6 +15,14 @@ data Bool : Set where true false : Bool
 [_] : Bool → Set
 [ true  ] = One
 [ false ] = Zero
+
+¬_ : {ℓ : Level} → Set ℓ → Set ℓ
+¬ P = P → Zero
+
+bool : {ℓ : Level} (C : Bool → Set ℓ) →
+       (b : Bool) (t : [ b ] → C true) (f : ¬ [ b ] → C false) → C b
+bool C true  t f = t one
+bool C false t f = f (λ x → x)
 
 infixr 6 _∧_
 infixr 5 _∨_
@@ -36,17 +44,16 @@ postulate
 primitive
   primCharEquality : Char → Char → Bool
 
-¬_ : Set → Set
-¬ P = P → Zero
-
-data Dec (A : Set) : Set where
+data Dec {ℓ : Level} (A : Set ℓ) : Set ℓ where
   yes : A   → Dec A
   no  : ¬ A → Dec A
 
-dec : {P : Set} (C : Dec P → Set) (d : Dec P) (yes : (p : P) → C (yes p)) (no : (¬p : ¬ P) → C (no ¬p)) → C d
+dec : {ℓ ℓ′ : Level} {P : Set ℓ} (C : Dec P → Set ℓ′)
+      (d : Dec P) (yes : (p : P) → C (yes p)) (no : (¬p : ¬ P) → C (no ¬p)) → C d
 dec C (yes p) y n  = y p
 dec C (no ¬p) y n = n ¬p
 
+infix 1 _≡_
 data _≡_ {ℓ : Level} {A : Set ℓ} (a : A) : (b : A) → Set ℓ where
   refl : a ≡ a
 {-# BUILTIN EQUALITY _≡_  #-}
@@ -72,6 +79,7 @@ isYes d = dec _ d (λ _ → true) (λ _ → false)
 _==_ : Char → Char → Bool
 a == b = isYes (a ≟ b)
 
+infixr 10 _∷_
 data List (A : Set) : Set where
   []  : List A
   _∷_ : A → List A → List A
@@ -79,6 +87,11 @@ data List (A : Set) : Set where
 {-# BUILTIN LIST List #-}
 {-# BUILTIN NIL  []   #-}
 {-# BUILTIN CONS _∷_  #-}
+
+infixr 5 _++_
+_++_ : {A : Set} → List A → List A → List A
+[]       ++ ys = ys
+(x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
 String = List Char
 
@@ -90,9 +103,15 @@ isEmpty _  = false
 Type : Set
 Type = String → Bool
 
-infix 4 _∈_
+infix 7 _∈_
 _∈_ : String → Type → Set
 a ∈ A = [ A a ]
+
+infix 7 _∈?_
+_∈?_ : (a : String) (A : Type) → Dec (a ∈ A)
+a ∈? A with A a
+... | true  = yes one
+... | false = no (λ x → x)
 
 infixr 3 _,_
 record ⟨_⟩ (A : Type) : Set where
@@ -100,6 +119,7 @@ record ⟨_⟩ (A : Type) : Set where
   field
     val : String
     .pr : val ∈ A
+open ⟨_⟩ public
 
 infixr 3 _⟶_ _⟶′_
 _⟶_ : {ℓ : Level} → Type → Set ℓ → Set ℓ
@@ -112,15 +132,21 @@ postulate
 {-# BUILTIN STRING Text #-}
 
 primitive
-  primStringToList : Text → String
+  primStringToList   : Text   → String
+  primStringFromList : String → Text
 
 ⟦_⟧ = primStringToList
 
+show : {A : Type} → A ⟶ Text
+show a = primStringFromList (val a)
+
 infixr 0 _$_
-_$_ : {A B : Set} (f : A → B) (x : A) → B
+_$_ : {ℓ : Level} {A B : Set ℓ} (f : A → B) (x : A) → B
 f $ x = f x
 
 infix 0 !_!
-!_! : {A : Type} (a : Text) {pr : ⟦ a ⟧ ∈ A} →
-      ⟨ A ⟩
+!_! : {A : Type} (a : Text) {pr : ⟦ a ⟧ ∈ A} → ⟨ A ⟩
 ! a ! {pr} = ⟦ a ⟧ , pr
+
+!_∋_! : (A : Type) (a : Text) {pr : ⟦ a ⟧ ∈ A} → ⟨ A ⟩
+! A ∋ a ! {pr} = ! a ! {pr}
