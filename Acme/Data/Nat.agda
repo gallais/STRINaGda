@@ -1,67 +1,48 @@
 module Acme.Data.Nat where
 
-open import Data.List
-open import Data.Char as Char
-open import Data.Bool
-open import Data.Product
 open import Acme.Data.Type
-
-open import Function
-open import Relation.Nullary
-open import lib.Nullary
-open import Relation.Binary.PropositionalEquality
-
-isNil? : ∀ {ℓᵃ} {A : Set ℓᵃ} (xs : List A) → Dec (xs ≡ [])
-isNil? []      = yes refl
-isNil? (_ ∷ _) = no (λ ())
 
 Nat : Type
 Nat []       = false
-Nat (c ∷ cs) =
-    toBool (c Char.≟ 'Z') ∧ toBool (isNil? cs)
-  ∨ toBool (c Char.≟ 'S') ∧ Nat cs
+Nat (c ∷ cs) = c == 'Z' ∧ isEmpty cs
+             ∨ c == 'S' ∧ Nat cs
 
-`zero : valOfType Nat
-`zero = ('Z' ∷ [] , _)
+`zero : ⟨ Nat ⟩
+`zero = ! "Z" !
 
-`succ : Nat ⟶ Nat
-`succ (n , prn) = ('S' ∷ n , prn)
+`succ : Nat ⟶′ Nat
+`succ (n , prn) = 'S' ∷ n , prn
 
-NatInduction : {P : valOfType Nat → Type}
-  (pz : valOfType $ P `zero) (ps : ∀ n → P n ⟶ P (`succ n))
-  (cs : valOfType Nat) → valOfType $ P cs
-NatInduction {P} pz ps = uncurry go
+NatInduction : {P : Nat ⟶ Set}
+  (pz : P `zero) (ps : ∀ n → P n → P (`succ n))
+  (cs : ⟨ Nat ⟩) → P cs
+NatInduction {P} Pz Ps (bs , pr) = go bs pr
   where
-    go : (cs : String) (prcs : cs ofType Nat) → valOfType $ P $ cs , prcs
+    go : (cs : String) .(pr : cs ∈ Nat) → P (cs , pr)
     go []       ()
-    go (c ∷ cs) prcs =
-      (dec′ (λ d → (T $ toBool d ∧ toBool (isNil? cs) ∨ toBool (c Char.≟ 'S') ∧ Nat cs) →
-                    valOfType $ P $ c ∷ cs , prcs)
-            (c Char.≟ 'Z') PZ $ const $
-       dec′ (λ d → (T $ toBool d ∧ Nat cs) → valOfType $ P $ c ∷ cs , prcs)
-            (c Char.≟ 'S') (λ p pcs → PS p $ go cs pcs) (const $ λ ())
-      ) prcs
-      where
-        PS : {c : Char} {cs : List Char} {prccs : c ∷ cs ofType Nat} {prcs : cs ofType Nat}
-             (eq : c ≡ 'S') (pr : valOfType $ P $ cs , prcs) → valOfType $ P $ c ∷ cs , prccs
-        PS {cs = cs} {prccs} {prcs} refl val rewrite T-unique prccs prcs = ps (cs , prcs) val
+    go (c ∷ cs) pr = (
+      dec PZ (c ≟ 'Z') (pz c cs pr) $ λ ¬c≡Z →
+      dec PS (c ≟ 'S') (ps c cs pr) $ λ ¬c≡S →
+      ZeroElim
+      ) pr
 
-        PZ : {c : Char} {cs : List Char} {prcs : c ∷ cs ofType Nat}
-             (eq : c ≡ 'Z') (pr : T $ toBool (isNil? cs) ∨ toBool (c Char.≟ 'S') ∧ Nat cs) →
-             valOfType $ P $ c ∷ cs , prcs
-        PZ {cs = cs} refl pr =
-          dec′ (λ d → (T $ toBool d ∨ false) → valOfType $ P $ 'Z' ∷ cs , _) (isNil? cs)
-          (λ eq _ → PZ′ eq) (const $ λ ()) pr
-          where
-            PZ′ : {cs : List Char} {prcs : T (toBool (isNil? cs) ∨ false)}
-                  (eq : cs ≡ []) → valOfType $ P $ 'Z' ∷ cs , prcs
-            PZ′ refl = pz
+     where
+     
+       PZ : Dec (c ≡ 'Z') → Set
+       PZ d = .([ isYes d ∧ isEmpty cs ∨ c == 'S' ∧ Nat cs ]) → P (c ∷ cs , pr)
+     
+       pz : ∀ c cs .pr → c ≡ 'Z' → .([ isEmpty cs ∨ c == 'S' ∧ Nat cs ]) → P (c ∷ cs , pr)
+       pz .'Z' []      pr refl hf = Pz
+       pz .'Z' (_ ∷ _) pr refl hf = ZeroElim hf
+       
+       PS : Dec (c ≡ 'S') → Set
+       PS d = .([ isYes d ∧ Nat cs ]) → P (c ∷ cs , pr)
+     
+       ps : ∀ c cs .pr → c ≡ 'S' → .([ Nat cs ]) → P (c ∷ cs , pr)
+       ps .'S' cs pr refl hf = Ps (cs , pr) (go cs pr)
 
-add : valOfType Nat → Nat ⟶ Nat
-add m = λ n → NatInduction n (const `succ) m
+add : Nat ⟶ Nat ⟶′ Nat
+add m = λ n → NatInduction n (λ _ → `succ) m
 
-import Data.String as Str
-
-`3+2 : valOfType Nat
-`3+2 = add ! "SSSZ" ! ! "SSZ" !
-
+`3+2≡5 : add ! "SSSZ" ! ! "SSZ" ! ≡ ! "SSSSSZ" !
+`3+2≡5 = refl
