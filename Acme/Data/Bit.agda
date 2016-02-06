@@ -15,8 +15,8 @@ BitInduction {ℓ} {P} bit0 bit1 (b , pr) = go b pr where
   go : ∀ b .(pr : b ∈ Bit) → P (b , pr)
   go []       ()
   go (a ∷ as) pr = (
-    dec P0 (a ≟ '0') (p0 a as pr) $ λ ¬a≡0 →
-    dec P1 (a ≟ '1') (p1 a as pr) $ λ ¬a≡1 →
+    dec P0 (a ≟C '0') (p0 a as pr) $ λ ¬a≡0 →
+    dec P1 (a ≟C '1') (p1 a as pr) $ λ ¬a≡1 →
     ZeroElim
     ) pr
 

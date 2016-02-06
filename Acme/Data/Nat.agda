@@ -23,8 +23,8 @@ NatInduction {ℓ} {P} Pz Ps (bs , pr) = go bs pr where
   go : (cs : String) .(pr : cs ∈ Nat) → P (cs , pr)
   go []       ()
   go (c ∷ cs) pr = (
-    dec PZ (c ≟ 'Z') (pz c cs pr) $ λ ¬c≡Z →
-    dec PS (c ≟ 'S') (ps c cs pr) $ λ ¬c≡S →
+    dec PZ (c ≟C 'Z') (pz c cs pr) $ λ ¬c≡Z →
+    dec PS (c ≟C 'S') (ps c cs pr) $ λ ¬c≡S →
     ZeroElim
     ) pr where
      
@@ -82,7 +82,7 @@ _≤_ = NatInduction (λ _ → ! "1" !) (λ _ ih n → NatCase ! "0" ! ih n)
 private
 
   `3≤5 : Bit[ `3 ≤ `5 ]
-  `3≤5 = one
+  `3≤5 = mkOne
 
   `5≤3 : Bit[ `5 ≤ `3 ] → Zero
   `5≤3 = λ x → x

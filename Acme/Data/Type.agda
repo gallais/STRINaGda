@@ -3,12 +3,27 @@ module Acme.Data.Type where
 open import Level
 
 record One : Set where
-  constructor one
+  constructor mkOne
 
 data Zero : Set where
 
 ZeroElim : {ℓ : Level} {A : Set ℓ} → .Zero → A
 ZeroElim ()
+
+infixr 5 _&_
+record Pair (A : Set) (B : A → Set) : Set where
+  constructor _&_
+  field
+    fst : A
+    snd : B fst
+open Pair public
+
+∃ : {A : Set} (B : A → Set) → Set
+∃ B = Pair _ B
+
+infixr 2 _×_
+_×_ : (A B : Set) → Set
+A × B = Pair A (λ _ → B)
 
 data Bool : Set where true false : Bool
 
@@ -21,7 +36,7 @@ data Bool : Set where true false : Bool
 
 bool : {ℓ : Level} (C : Bool → Set ℓ) →
        (b : Bool) (t : [ b ] → C true) (f : ¬ [ b ] → C false) → C b
-bool C true  t f = t one
+bool C true  t f = t mkOne
 bool C false t f = f (λ x → x)
 
 infixr 6 _∧_
@@ -66,9 +81,9 @@ private
 trustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
 trustMe = primTrustMe
 
-infix 5 _≟_
-_≟_ : (a b : Char) → Dec (a ≡ b)
-a ≟ b with primCharEquality a b
+infix 5 _≟C_
+_≟C_ : (a b : Char) → Dec (a ≡ b)
+a ≟C b with primCharEquality a b
 ... | true  = yes trustMe
 ... | false = no whatever
   where postulate whatever : _
@@ -77,10 +92,10 @@ isYes : {A : Set} → Dec A → Bool
 isYes d = dec _ d (λ _ → true) (λ _ → false)
 
 _==_ : Char → Char → Bool
-a == b = isYes (a ≟ b)
+a == b = isYes (a ≟C b)
 
 infixr 10 _∷_
-data List (A : Set) : Set where
+data List {ℓ : Level} (A : Set ℓ) : Set ℓ where
   []  : List A
   _∷_ : A → List A → List A
 
@@ -110,7 +125,7 @@ a ∈ A = [ A a ]
 infix 7 _∈?_
 _∈?_ : (a : String) (A : Type) → Dec (a ∈ A)
 a ∈? A with A a
-... | true  = yes one
+... | true  = yes mkOne
 ... | false = no (λ x → x)
 
 infixr 3 _,_
@@ -132,16 +147,32 @@ postulate
 {-# BUILTIN STRING Text #-}
 
 primitive
+  primStringEquality : Text → Text → Bool
   primStringToList   : Text   → String
   primStringFromList : String → Text
 
 ⟦_⟧ = primStringToList
 
+infix 5 _≟T_
+_≟T_ : (a b : Text) → Dec (a ≡ b)
+a ≟T b with primStringEquality a b
+... | true  = yes trustMe
+... | false = no whatever
+  where postulate whatever : _
+
+_==T_ : (s t : Text) → Bool
+s ==T t = isYes (s ≟T t)
+
 show : {A : Type} → A ⟶ Text
 show a = primStringFromList (val a)
 
+
+infixl 1 _∘_
+_∘_ : {ℓ : Level} {A B C : Set ℓ} (g : B → C) (f : A → B) → A → C
+g ∘ f = λ a → g (f a)
+
 infixr 0 _$_
-_$_ : {ℓ : Level} {A B : Set ℓ} (f : A → B) (x : A) → B
+_$_ : {ℓ ℓ′ : Level} {A : Set ℓ} {B : Set ℓ′} (f : A → B) (x : A) → B
 f $ x = f x
 
 infix 0 !_!
