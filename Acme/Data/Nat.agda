@@ -13,14 +13,14 @@ Nat (c ∷ cs) = c == 'Z' ∧ isEmpty cs
 `zero = ! "Z" !
 
 `succ : Nat ⟶′ Nat
-`succ (n , prn) = 'S' ∷ n , prn
+`succ (n ,, prn) = 'S' ∷ n ,, prn
 
 NatInduction : {ℓ : Level} {P : Nat ⟶ Set ℓ}
   (pz : P `zero) (ps : ∀ n → P n → P (`succ n))
   (cs : ⟨ Nat ⟩) → P cs
-NatInduction {ℓ} {P} Pz Ps (bs , pr) = go bs pr where
+NatInduction {ℓ} {P} Pz Ps (bs ,, pr) = go bs pr where
   
-  go : (cs : String) .(pr : cs ∈ Nat) → P (cs , pr)
+  go : (cs : String) .(pr : cs ∈ Nat) → P (cs ,, pr)
   go []       ()
   go (c ∷ cs) pr = (
     dec PZ (c ≟C 'Z') (pz c cs pr) $ λ ¬c≡Z →
@@ -29,17 +29,17 @@ NatInduction {ℓ} {P} Pz Ps (bs , pr) = go bs pr where
     ) pr where
      
     PZ : Dec (c ≡ 'Z') → Set ℓ
-    PZ d = .([ isYes d ∧ isEmpty cs ∨ c == 'S' ∧ Nat cs ]) → P (c ∷ cs , pr)
+    PZ d = .(< isYes d ∧ isEmpty cs ∨ c == 'S' ∧ Nat cs >) → P (c ∷ cs ,, pr)
      
-    pz : ∀ c cs .pr → c ≡ 'Z' → .([ isEmpty cs ∨ c == 'S' ∧ Nat cs ]) → P (c ∷ cs , pr)
+    pz : ∀ c cs .pr → c ≡ 'Z' → .(< isEmpty cs ∨ c == 'S' ∧ Nat cs >) → P (c ∷ cs ,, pr)
     pz .'Z' []      pr refl hf = Pz
     pz .'Z' (_ ∷ _) pr refl hf = ZeroElim hf
        
     PS : Dec (c ≡ 'S') → Set ℓ
-    PS d = .([ isYes d ∧ Nat cs ]) → P (c ∷ cs , pr)
+    PS d = .(< isYes d ∧ Nat cs >) → P (c ∷ cs ,, pr)
      
-    ps : ∀ c cs .pr → c ≡ 'S' → .([ Nat cs ]) → P (c ∷ cs , pr)
-    ps .'S' cs pr refl hf = Ps (cs , pr) (go cs pr)
+    ps : ∀ c cs .pr → c ≡ 'S' → .(< Nat cs >) → P (c ∷ cs ,, pr)
+    ps .'S' cs pr refl hf = Ps (cs ,, pr) (go cs pr)
 
 NatCase : {P : Nat ⟶ Set}
   (pz : P `zero) (ps : ∀ n → P (`succ n)) →
@@ -81,8 +81,8 @@ _≤_ = NatInduction (λ _ → ! "1" !) (λ _ ih n → NatCase ! "0" ! ih n)
 
 private
 
-  `3≤5 : Bit[ `3 ≤ `5 ]
+  `3≤5 : Bit< `3 ≤ `5 >
   `3≤5 = mkOne
 
-  `5≤3 : Bit[ `5 ≤ `3 ] → Zero
+  `5≤3 : Bit< `5 ≤ `3 > → Zero
   `5≤3 = λ x → x

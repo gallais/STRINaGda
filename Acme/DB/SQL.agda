@@ -89,7 +89,7 @@ AllIn? (n ∷ ns) t with n ε? t | AllIn? ns t
 ... | yes (r & p) | yes (rs & ps) = yes (r ∷ rs & r :& p ∷ ps)
 ... | _ | _ = no {!!}
 
-fromYes : {P : Set} (d : Dec P) {_ : [ isYes d ]} → P
+fromYes : {P : Set} (d : Dec P) {_ : < isYes d >} → P
 fromYes (yes p) = p
 fromYes (no ¬p) {()}
 
@@ -102,9 +102,25 @@ collapse : {t : Table} {rs : List Row} {ns : List Text} →
 collapse []            = []
 collapse (r :& x ∷ xs) rewrite collapseε x = (r & x) ∷ collapse xs
 
-SELECT_FROM_ : (rs : List Text) (t : Table) {pr : [ isYes (AllIn? rs t) ]} →
-               let (_ & rs) = fromYes (AllIn? rs t) {pr} in SQL (VSQLS $ map fst $ collapse rs)
-(SELECT rs FROM t) {pr} = SELECTFROM t (collapse (snd (fromYes (AllIn? rs t) {pr}))) RETURN
+infix 3 [_
+data SELECTED (t : Table) : Set where
+  *   : SELECTED t
+  [_  : (xs : List Text) {pr : < isYes (AllIn? xs t) >} → SELECTED t
+
+diag : (t : Table) → List (Pair Row $ λ r → r ∋ name r ε t)
+diag []      = []
+diag (r ∷ t) = (r & z) ∷ map (bimap id s) (diag t)
+
+toList : (t : Table) → SELECTED t → List (Pair Row $ λ r → r ∋ name r ε t)
+toList t *             = diag t
+toList t ([_ xs {pr}) = collapse (snd (fromYes (AllIn? xs t) {pr}))
+
+infix 2 selectfrom
+selectfrom : (t : Table) (sel : SELECTED t) → SQL (VSQLS (map fst (toList t sel)))
+selectfrom t *               = SELECTFROM t (diag t) RETURN
+selectfrom t ([_ xs {pr}) = SELECTFROM t (collapse (snd (fromYes (AllIn? xs t) {pr}))) RETURN
+
+syntax selectfrom t rs = SELECT rs FROM t
 
 
 return : {A : Set} → A → SQL A
@@ -115,9 +131,21 @@ RETURN a          >>= f = f a
 SELECTFROM t rs k >>= f = SELECTFROM t rs (λ a → k a >>= f)
 INSERTINTO t vs k >>= f = INSERTINTO t vs (λ a → k a >>= f)
 
+fmap : {A B : Set} (f : A → B) → SQL A → SQL B
+fmap f ma = ma >>= (return ∘ f)
+
 postulate
 
   runSQL : {A : Set} → SQL A → A
+
+infixr 4 cons
+infix  5 singleton
+singleton : {ℓ : Level} {A : Set ℓ} → A → List A
+singleton a = a ∷ []
+cons : {ℓ : Level} {A : Set ℓ} → A → List A → List A
+cons = _∷_
+syntax singleton a = a ]
+syntax cons x xs = x , xs
 
 private
 
@@ -129,7 +157,10 @@ private
   Customer = CustomerID ∷ CustomerSurname ∷ CustomerPoints ∷ []
 
   SelectIDSurname : SQL (VSQLS (CustomerID ∷ CustomerSurname ∷ []))
-  SelectIDSurname = SELECT "CustomerID" ∷ "CustomerSurname" ∷ [] FROM Customer
+  SelectIDSurname = SELECT [ "CustomerID" , "CustomerSurname" ] FROM Customer
+
+  Select* : SQL $ List $ ⟨ Nat ⟩ × ⟨ AlphaString ⟩ × ⟨ Nat ⟩
+  Select* = fmap vsqls $ SELECT * FROM Customer
 
   mkNewCustomer : ⟨ Nat ⟩ → ⟨ AlphaString ⟩ → SQL One
   mkNewCustomer id sn = INSERT id & sn & ! "Z" ! INTO Customer -- a new customer start with 0 points

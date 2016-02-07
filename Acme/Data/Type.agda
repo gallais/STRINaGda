@@ -25,17 +25,20 @@ infixr 2 _×_
 _×_ : (A B : Set) → Set
 A × B = Pair A (λ _ → B)
 
+bimap : {A C : Set} {B : A → Set} {D : C → Set} (f : A → C) (g : {a : A} → B a → D (f a)) → Pair A B → Pair C D
+bimap f g (fst & snd) = f fst & g snd
+
 data Bool : Set where true false : Bool
 
-[_] : Bool → Set
-[ true  ] = One
-[ false ] = Zero
+<_> : Bool → Set
+< true  > = One
+< false > = Zero
 
 ¬_ : {ℓ : Level} → Set ℓ → Set ℓ
 ¬ P = P → Zero
 
 bool : {ℓ : Level} (C : Bool → Set ℓ) →
-       (b : Bool) (t : [ b ] → C true) (f : ¬ [ b ] → C false) → C b
+       (b : Bool) (t : < b > → C true) (f : ¬ < b > → C false) → C b
 bool C true  t f = t mkOne
 bool C false t f = f (λ x → x)
 
@@ -120,7 +123,7 @@ Type = String → Bool
 
 infix 7 _∈_
 _∈_ : String → Type → Set
-a ∈ A = [ A a ]
+a ∈ A = < A a >
 
 infix 7 _∈?_
 _∈?_ : (a : String) (A : Type) → Dec (a ∈ A)
@@ -128,9 +131,9 @@ a ∈? A with A a
 ... | true  = yes mkOne
 ... | false = no (λ x → x)
 
-infixr 3 _,_
+infixr 3 _,,_
 record ⟨_⟩ (A : Type) : Set where
-  constructor _,_
+  constructor _,,_
   field
     val : String
     .pr : val ∈ A
@@ -166,6 +169,8 @@ s ==T t = isYes (s ≟T t)
 show : {A : Type} → A ⟶ Text
 show a = primStringFromList (val a)
 
+id : {A : Set} → A → A
+id = λ x → x
 
 infixl 1 _∘_
 _∘_ : {ℓ : Level} {A B C : Set ℓ} (g : B → C) (f : A → B) → A → C
@@ -177,7 +182,7 @@ f $ x = f x
 
 infix 0 !_!
 !_! : {A : Type} (a : Text) {pr : ⟦ a ⟧ ∈ A} → ⟨ A ⟩
-! a ! {pr} = ⟦ a ⟧ , pr
+! a ! {pr} = ⟦ a ⟧ ,, pr
 
 !_∋_! : (A : Type) (a : Text) {pr : ⟦ a ⟧ ∈ A} → ⟨ A ⟩
 ! A ∋ a ! {pr} = ! a ! {pr}
