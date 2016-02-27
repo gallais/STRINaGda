@@ -78,12 +78,12 @@ private
 data Desc : Set where
   `∃ : (A : Parser) (d : parsed A ⟶ Desc) → Desc
   `T : Desc
-  `X : Desc
+  `X : Desc → Desc
 
 desc : Desc → (x : Char) (xs : String) → (∀ ys → .(ys < x ∷ xs) → Maybe (Rest ys)) → Maybe (Rest xs)
 desc (`∃ A d) x xs X = {!!}
 desc `T       x xs X = string ⟦ " []" ⟧ xs
-desc `X       x xs X = X xs (step _ xs)
+desc (`X d)   x xs X = bind xs (X xs (step _ xs)) $ λ r → desc d x (rest r) (λ ys lt → X ys (trans lt (∷ prf r)))
 
 tr : ∀ {ℓ} {A : Set ℓ} {xs : List A} {ys} z {zs} → xs < ys → ys < z ∷ zs → xs < zs
 tr z [] (∷ []) = []
@@ -110,11 +110,19 @@ mu cs = induction (λ xs → Maybe (Rest xs)) (go (constrs cs)) where
 
 nat : Data
 nat = mkData $ ("Zero" & `T)
-             ∷ ("Succ" & `X)
+             ∷ ("Succ" & `X `T)
              ∷ []
 
 ℕ : Type
 ℕ = parsed (mu nat)
+
+btree : Data
+btree = mkData $ ("Leaf" & `T)
+               ∷ ("Node" & `X (`X `T))
+               ∷ []
+
+𝔹 : Type
+𝔹 = parsed (mu btree)
 
 private
 
@@ -122,4 +130,10 @@ private
   zero = ! "[`Zero []]" !
 
   three : ⟨ ℕ ⟩
-  three = ! "[`Succ [`Succ [`Succ [`Zero []]]]]" !
+  three = ! "[`Succ [`Succ [`Succ [`Zero []] []] []] []]" !
+
+  leaf : ⟨ 𝔹 ⟩
+  leaf = ! "[`Leaf []]" !
+
+  four : ⟨ 𝔹 ⟩
+  four = ! "[`Node [`Node [`Leaf []] [`Leaf []] []] [`Node [`Leaf []] [`Leaf []] []] []]" !
