@@ -1,18 +1,20 @@
 module Acme.Type where
 
-open import Agda.Builtin.Bool
-open import Agda.Builtin.Char
+open import Agda.Builtin.Bool using (Bool; true; false)
+open import Agda.Builtin.Char using (Char)
   renaming (primCharEquality to _==_)
-open import Agda.Builtin.Equality
-open import Agda.Builtin.List
-open import Agda.Builtin.String
+open import Agda.Builtin.Equality using (_≡_; refl)
+open import Agda.Builtin.List using (List; []; _∷_)
+open import Agda.Builtin.String using (String)
   renaming (primStringToList to unpack)
+open import Agda.Builtin.Unit using (⊤)
+open import Agda.Builtin.TrustMe using ()
+  renaming (primTrustMe to trustMe)
+
 
 Type : Set
 Type = List Char → Bool
 
-record ⊤ : Set where
-  instance constructor tt
 data ⊥ : Set where
 
 T : Bool → Set
@@ -56,23 +58,22 @@ zero = ℕ ∋ "Z"
 suc : Elt ℕ → Elt ℕ
 suc [ n ] = [ 'S' ∷ n ]
 
+one    = ℕ ∋ "SZ"
+two    = suc (suc zero)
+three  = ℕ ∋ "SSSZ"
+four   = suc three
+
 data Reflects (a : Char) : Char → Bool → Set where
   true  : Reflects a a true
   false : ∀ {b} → Reflects a b false
 
-open import Agda.Builtin.Equality.Erase
-  renaming (primEraseEquality to erase)
+mkTrue : ∀ {a b} → a ≡ b → Reflects a b true
+mkTrue refl = true
 
 _≟_ : (a b : Char) → Reflects a b (a == b)
 a ≟ b with a == b
 ... | false = false
-... | true  = mkTrue trustMe where
-
-  trustMe : a ≡ b
-  trustMe = erase eq where postulate eq : a ≡ b
-
-  mkTrue : ∀ {a b} → a ≡ b → Reflects a b true
-  mkTrue refl = true
+... | true  = mkTrue trustMe
 
 module _ (P : Elt ℕ → Set)
          (P0 : P zero)
@@ -93,19 +94,21 @@ module _ (P : Elt ℕ → Set)
     checkZ true  [] refl = P0
     checkZ false cs eq   = checkS (c ≟ 'S') cs eq
 
-module _ (P : Elt ℕ → Set)
-         (P0 : P zero)
-         (PS : ∀ n → P n → P (suc n))
-         where
+_ : ∀ {P P0 PS} → induction P P0 PS zero ≡ P0
+_ = refl
 
-  _ : induction P P0 PS zero ≡ P0
-  _ = refl
-
-  _ : ∀ n → induction P P0 PS (suc n) ≡ PS n (induction P P0 PS n)
-  _ = λ n → refl
+_ : ∀ {P P0 PS n} →
+    induction P P0 PS (suc n) ≡ PS n (induction P P0 PS n)
+_ = refl
 
 _+_ : Elt ℕ → Elt ℕ → Elt ℕ
 m + n = induction (λ _ → Elt ℕ) n (λ _ → suc) m
 
-_ : ℕ ∋ "SSSZ" + ℕ ∋ "SZ" ≡ ℕ ∋ "SSSSZ"
+_ : three + one ≡ four
+_ = refl
+
+_*_ : Elt ℕ → Elt ℕ → Elt ℕ
+m * n = induction (λ _ → Elt ℕ) zero (λ _ → n +_) m
+
+_ : two * three ≡ four + two
 _ = refl

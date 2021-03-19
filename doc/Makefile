@@ -1,7 +1,10 @@
+FILE=stringlytyped
+
 all:
-	agda -i . --latex strinagda.lagda
-	cd latex && latexmk -xelatex -pdf -e '$$pdflatex=q/xelatex %O %S/' strinagda.tex
-	ln -sf latex/strinagda.pdf .
+	agda -i . --latex ${FILE}.lagda
+	cp unicode.tex commands.tex main.bib latex/
+	cd latex && latexmk -pdf -bibtex ${FILE}.tex
+	ln -sf latex/${FILE}.pdf .
 
 clean:
-	rm -rf latex/ strinagda.pdf
+	rm -rf latex/ ${FILE}.pdf
