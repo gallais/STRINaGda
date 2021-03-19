@@ -31,10 +31,13 @@ formalise all of mathematics as types and programs.
 In this paper we reclaim this power to the advantage of the honest working
 programmer by demonstrating how one can use the ivory tower concepts to
 revitalise the age old practice of stringly typed programming. We will use
-Agda as our language of choice because it provides us with powerful enough
-``unsafe'' primitives to conduct our experiment. This paper is a self-contained
-literate Agda file so the interested reader should be able to independently
-reproduce our results. You can also find the content at
+Agda~\cite{norell2009dependently} as our language of choice
+because it provides us with powerful enough
+``unsafe'' primitives to conduct our experiment.
+
+This paper is a self-contained literate Agda file so the interested reader
+should be able to independently reproduce our results.
+You can also find the content on github at
 \url{https://github.com/gallais/STRINaGda}.
 
 \section{What even is a type?}
@@ -233,7 +236,8 @@ The tricky part in defining induction for the natural numbers is in connecting
 the observations made by the boolean-valued equality test \AF{\_==\_} with
 propositional equality.
 %
-To do that we introduce a \AD{Reflects} indexed family inspired by the
+To do that we introduce a \AD{Reflects} inductive
+family~\cite{dybjer1994inductive} inspired by the
 architecture of Coq's small scale reflection
 library~\cite{assia_mahboubi_2021_4457887}.
 A proof {\AD{Reflects} \AB{c} \AB{d} \AB{b}} is,
