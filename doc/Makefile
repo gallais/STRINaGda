@@ -1,7 +1,7 @@
 FILE=stringlytyped
 
 all:
-	agda -i . --latex ${FILE}.lagda
+	agda -i . --latex ${FILE}.lagda.tex
 	cp unicode.tex commands.tex main.bib latex/
 	cd latex && latexmk -pdf -bibtex ${FILE}.tex
 	ln -sf latex/${FILE}.pdf .

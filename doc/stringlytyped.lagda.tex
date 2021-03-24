@@ -68,7 +68,7 @@ function internalising the predicate ``this boolean is true''.
 
 Agda ships with a notion of trivial truthfulness (the unit type) but
 unfortunately it does not provide us with a notion of trivial falsity.
-So we have to define the empty ourselves as a sum type with zero
+So we have to define the empty type ourselves as a sum type with zero
 constructor.
 
 \begin{code}
@@ -143,7 +143,7 @@ string starting with `S' and whose tail is itself a natural number.
 Agda, being a very inpractical programming language, does not ship with
 \AF{\_\&\&\_} and \AF{\_||\_} defined on booleans.
 The standard library does provide these definitions but has to be installed
-separately and wwe want this document to be self-contained so we will have
+separately and we want this document to be self-contained so we will have
 to start by defining them ourselves.
 
 \begin{code}
@@ -161,7 +161,7 @@ false  || b = b
 Next we need a way to test that a list of characters is empty.
 The builtin type \AD{List} has two constructors: \AIC{[]} for the
 empty list, and \AIC{\_∷\_} for putting together a character as the
-head of the linked list a tail of additional characters. A list is
+head of the linked list and a tail of additional characters. A list is
 empty precisely when it is \AIC{[]}.
 
 \begin{code}
@@ -210,12 +210,16 @@ suc [ n ] = [ 'S' ∷ n ]
 We can define constant numbers either by using our \AF{\_∋\_} gadget or by
 using \AF{suc} and \AF{zero}, whatever feels most convenient.
 
+\label{sec:natconstant}
 \begin{code}
 one    = ℕ ∋ "SZ"
 two    = suc (suc zero)
 three  = ℕ ∋ "SSSZ"
 four   = suc three
 \end{code}
+
+We will use these constants again when writing unit tests for the programs
+over natural numbers we are now going to develop.
 
 \section{Stringly Typed Programming}
 
@@ -232,20 +236,19 @@ number \AB{n} a proof of type {\AB{P} \AB{n}}.
 
 \subsection{Small Scale Reflection}
 
-The tricky part in defining induction for the natural numbers is in connecting
-the observations made by the boolean-valued equality test \AF{\_==\_} with
-propositional equality.
-%
-To do that we introduce a \AD{Reflects} inductive
-family~\cite{dybjer1994inductive} inspired by the
-architecture of Coq's small scale reflection
-library~\cite{assia_mahboubi_2021_4457887}.
-A proof {\AD{Reflects} \AB{c} \AB{d} \AB{b}} is,
-if the boolean \AB{b} is \AIC{true} equivalent to a proof that \AB{c} is
-equal to \AB{d},
-and otherwise a useless token.
-We name the \AD{Reflects} constructors the same as their index boolean so
-that matching on such a proof looks like matching on the original boolean.
+The tricky part in defining induction for the natural numbers is in
+connecting the observations made by the builtin boolean-valued equality
+test on characters \AF{\_==\_} with propositional equality.
+
+We introduce a \AD{Reflects} inductive family~\cite{dybjer1994inductive}
+indexed by two \AD{Char}s and a \AD{Bool}. Inspired by the architecture of
+Coq's small scale reflection library~\cite{assia_mahboubi_2021_4457887},
+it formalises the fact that whenever the boolean is \AIC{true} then the two
+characters are equal.
+
+We name the \AD{Reflects} constructors the same as the boolean constructor
+they are respectively indexed by. This means that matching on such a proof
+looks like matching on the original boolean.
 
 \begin{code}
 data Reflects (c : Char) : Char → Bool → Set where
@@ -264,9 +267,10 @@ mkTrue : ∀ {a b} → a ≡ b → Reflects a b true
 mkTrue refl = true
 \end{code}
 
-The only thing missing for us is a proof that whenever the test
-{\AB{a} \AF{==} \AB{b}} returns \AIC{true} then {\AB{a} \AD{≡} \AB{b}}.
-Unfortunately Agda does not provide us a primitive proof of this fact.
+The only thing missing for us is a proof that whenever the boolean test
+{\AB{a} \AF{==} \AB{b}} returns \AIC{true} then the values are indeed
+propositionally equal i.e. {\AB{a} \AD{≡} \AB{b}}.
+Unfortunately Agda does not provide a primitive proof of this fact.
 We will have to use an unsafe primitive called \AF{trustMe} to build
 such a proof.
 
@@ -323,7 +327,7 @@ be like.
 \begin{code}
   induction [ ccs@(c ∷ cs) ] = checkZ (c ≟ 'Z') cs refl
 
-   where
+    where
 
     checkS : ∀ {b} → Reflects c 'S' b → ∀ cs →
       {{IsTrue (b && ℕ cs)}} →
@@ -343,7 +347,8 @@ We can readily check that our \AF{induction} function behaves exactly
 like the primitive recursor on natural numbers ought to by writing two
 unit tests.
 
-First, when applied to \AF{zero}, the recursor returns its base case.
+First, when applied to \AF{zero}, the recursor immediately returns
+its base case.
 
 \begin{code}
 _ : ∀ {P P0 PS} → induction P P0 PS zero ≡ P0
@@ -356,7 +361,7 @@ recursive call.
 
 \begin{code}
 _ : ∀ {P P0 PS n} →
-      induction P P0 PS (suc n)
+    induction P P0 PS (suc n)
     ≡ PS n (induction P P0 PS n)
 _ = refl
 \end{code}
@@ -369,26 +374,156 @@ that Agda can tell by computation alone that the expressions are equal.
 As is well known, primitive recursion is enough to implement addition and
 multiplication on the natural numbers.
 
+Addition of \AB{m} to \AB{n} can be implemented by induction on \AB{m}.
+The base case, corresponding to \AF{zero} \AF{+} \AB{n}, amounts to returning
+\AB{n}. The step case amounts to taking the successor of the inductive
+hypothesis. This gives us the following definition:
+
 \begin{code}
 _+_ : Elt ℕ → Elt ℕ → Elt ℕ
 m + n = induction (λ _ → Elt ℕ) n (λ _ → suc) m
+\end{code}
 
+We can test the function thus implemented by writing a unit test reusing
+the constants defined in Section~\ref{sec:natconstant}, checking for instance
+that $3+1$ evaluates to $4$.
+
+\begin{code}
 _ : three + one ≡ four
 _ = refl
 \end{code}
 
+Multiplication is defined in the same way: \AF{zero} \AF{*} \AB{n}
+is equal to \AF{zero} and the step case amounts to stating that
+(\AF{suc} \AB{m}) \AF{*} \AB{n} should evaluate to
+\AB{n} \AF{+} \AB{m} \AF{*} \AB{n}.
+
 \begin{code}
 _*_ : Elt ℕ → Elt ℕ → Elt ℕ
 m * n = induction (λ _ → Elt ℕ) zero (λ _ → n +_) m
+\end{code}
 
+We can check with a unit test that our implementation verifies that
+$2*3$ equals $4+2$.
+
+\begin{code}
 _ : two * three ≡ four + two
 _ = refl
 \end{code}
 
+\section{Stringly Typed Proving}
 
-\todo{Fin + Fin ⊆ Nat?}
+Because our \AF{induction} function has the right computational behaviour,
+the definitions we just introduced should be well behaved too. They did pass
+a couple of unit tests but given that we are using a dependently typed host
+language we ought to be able to prove some of their properties.
 
-\section{Conclusion}
+\subsection{Equality combinators}
+
+\begin{code}
+variable
+  A B : Set
+  x y z : A
+
+cong : (f : A → B) → x ≡ y → f x ≡ f y
+cong f refl = refl
+
+sym : x ≡ y → y ≡ x
+sym refl = refl
+
+trans : x ≡ y → y ≡ z → x ≡ z
+trans refl eq = eq
+\end{code}
+
+\subsection{Properties of Addition}
+
+Given our earlier observation that \AF{induction} immediately returns its
+base case when applied to the natural number \AF{zero}, it should not be
+any surprise that the fact that \AF{zero} is trivially a left neutral for
+our definition of addition.
+
+\begin{code}
+zero-+ : ∀ m → zero + m ≡ m
+zero-+ m = refl
+\end{code}
+
+The proof that it is also a right neutral for addition requires a bit more
+work. We can use \AF{induction} itself to build such a proof.
+
+\begin{code}
++-zero : ∀ m → m + zero ≡ m
++-zero =
+  induction
+    (λ m → m + zero ≡ m)
+    refl
+    (λ n → cong suc)
+\end{code}
+
+Similarly, our previous unit test should lead us to anticipate that the
+proof that the addition of \AF{suc} \AB{m} to \AB{n} is equal to the
+successor of the addition of \AB{m} to \AB{n} is trival. This indeed holds
+true by computation only.
+
+\begin{code}
+suc-+ : ∀ m n → suc m + n ≡ suc (m + n)
+suc-+ m n = refl
+\end{code}
+
+The proof of the statement relating the addition of \AB{m} to \AF{suc} \AB{n}
+to the same value is however a bit more complex.
+
+\begin{code}
++-suc : ∀ m n → m + suc n ≡ suc (m + n)
++-suc m n =
+  induction
+    (λ m → (m + suc n) ≡ suc (m + n))
+    refl
+    (λ n → cong suc)
+    m
+\end{code}
+
+\begin{code}
++-sym : ∀ m n → m + n ≡ n + m
++-sym m n =
+  induction
+    (λ m → m + n ≡ n + m)
+    (sym (+-zero n))
+    (λ m ih → trans (cong suc ih) (sym (+-suc n m)))
+    m
+
++-assoc : ∀ m n p → (m + n) + p ≡ m + (n + p)
++-assoc m n p =
+  induction
+    (λ m → ((m + n) + p) ≡ (m + (n + p)))
+    refl
+    (λ m → cong suc)
+    m
+\end{code}
+
+\section{Conclusion \& Future Work}
+
+We have seen that we can take advantage of a dependently typed
+host language to seriously consider the prospect of safe and
+proven correct stringly typed programming.
+
+We are able to define a notion of type of natural numbers carving out a
+subset of well structured strings. This type is closed under the usual
+constructors for the natural numbers \AF{zero} and \AF{suc}.
+
+We then proved an induction principle for those strings that represent
+natural numbers. This empowered to start programming over these stringly
+typed natural numbers in a way that is guaranteed total.
+
+We finally demonstrated that our induction principle is strong enough to
+not only program on the stringly typed natural numbers but also to prove the
+fundamental properties of these programs.
+
+\paragraph{Indexed types}
+
+\paragraph{``Coercive'' subtyping}
+
+\paragraph{Parametrised types}
+
 
 \bibliography{main}
 

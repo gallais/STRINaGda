@@ -112,3 +112,69 @@ m * n = induction (λ _ → Elt ℕ) zero (λ _ → n +_) m
 
 _ : two * three ≡ four + two
 _ = refl
+
+variable
+  A B : Set
+  x y z : A
+
+cong : (f : A → B) → x ≡ y → f x ≡ f y
+cong f refl = refl
+
+sym : x ≡ y → y ≡ x
+sym refl = refl
+
+trans : x ≡ y → y ≡ z → x ≡ z
+trans refl eq = eq
+
+zero-+ : ∀ m → zero + m ≡ m
+zero-+ m = refl
+
++-zero : ∀ m → m + zero ≡ m
++-zero =
+  induction
+    (λ m → m + zero ≡ m)
+    refl
+    (λ n → cong suc)
+
+suc-+ : ∀ m n → suc m + n ≡ suc (m + n)
+suc-+ m n = refl
+
++-suc : ∀ m n → m + suc n ≡ suc (m + n)
++-suc m n =
+  induction
+    (λ m → (m + suc n) ≡ suc (m + n))
+    refl
+    (λ n → cong suc)
+    m
+
++-sym : ∀ m n → m + n ≡ n + m
++-sym m n =
+  induction
+    (λ m → m + n ≡ n + m)
+    (sym (+-zero n))
+    (λ m ih → trans (cong suc ih) (sym (+-suc n m)))
+    m
+
++-assoc : ∀ m n p → (m + n) + p ≡ m + (n + p)
++-assoc m n p =
+  induction
+    (λ m → ((m + n) + p) ≡ (m + (n + p)))
+    refl
+    (λ m → cong suc)
+    m
+
+Fin : Elt ℕ → Type
+Fin = induction (λ _ → Type) (λ _ → false) (λ _ → step)
+
+  where
+
+  step : Type → Type
+  step ih [] = false
+  step ih (c ∷ cs) = c == 'Z' && isNil cs
+                  || c == 'S' && ih cs
+
+fzero : ∀ {n} → Elt (Fin (suc n))
+fzero {n} = Fin (suc n) ∋ "Z"
+
+fsuc : ∀ {n} → Elt (Fin n) → Elt (Fin (suc n))
+fsuc [ k ] = [ 'S' ∷ k ]
