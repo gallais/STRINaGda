@@ -2,10 +2,17 @@ module Acme.Data.Nat where
 
 open import Acme.Type
 
-ℕ : Type
-ℕ (c ∷ cs) = c == 'Z' && isNil cs
-          || c == 'S' && ℕ cs
-ℕ _ = false
+ℕ   : Type
+isZ : Type
+isS : Type
+
+ℕ cs = isZ cs || isS cs
+
+isZ [] = false
+isZ (c ∷ cs) = c == 'Z' && isNil cs
+
+isS [] = false
+isS (c ∷ cs) = c == 'S' && ℕ cs
 
 zero = ℕ ∋ "Z"
 
@@ -16,7 +23,6 @@ one    = ℕ ∋ "SZ"
 two    = suc (suc zero)
 three  = ℕ ∋ "SSSZ"
 four   = suc three
-
 
 module _ (P : Elt ℕ → Set)
          (P0 : P zero)
@@ -32,7 +38,7 @@ module _ (P : Elt ℕ → Set)
     checkS true cs refl = PS [ cs ] (induction [ cs ])
 
     checkZ : ∀ {b} → Reflects c 'Z' b → ∀ cs →
-             {{@0 _ : T (b && isNil cs || c == 'S' && ℕ cs)}} →
+             {{@0 _ : T (b && isNil cs || isS (c ∷ cs))}} →
              ∀ {ccs} → c ∷ cs ≡ ccs .value → P ccs
     checkZ true  [] refl = P0
     checkZ false cs eq   = checkS (c ≟ 'S') cs eq
