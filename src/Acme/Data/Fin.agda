@@ -4,9 +4,12 @@ open import Acme.Type
 open import Acme.Data.Nat as ℕ using (ℕ)
 
 Fin : Elt ℕ → Type
-Fin = ℕ.induction (λ _ → Type) (λ _ → false) (λ _ → step)
+Fin = ℕ.induction (λ _ → Type) base (λ _ → step)
 
-  module Fin where
+  where
+
+  base : Type
+  base _ = false
 
   step : Type → Type
   step ih [] = false
@@ -32,12 +35,12 @@ sub = ℕ.induction
   step n ih (c ∷ cs) isFin = checkZ (c ≟ 'Z') cs {{isFin}} where
 
     checkS : ∀ {b} → Reflects c 'S' b → ∀ cs →
-             {{T (b && Fin n cs)}} →
+             {{IsTrue (b && Fin n cs)}} →
              (c ∷ cs) ∈ ℕ
     checkS true cs {{isFin}} = ih cs isFin
 
     checkZ : ∀ {b} → Reflects c 'Z' b → ∀ cs →
-             {{T (b && isNil cs || c == 'S' && Fin n cs)}} →
+             {{IsTrue (b && isNil cs || c == 'S' && Fin n cs)}} →
              (c ∷ cs) ∈ ℕ
     checkZ true  [] = _
     checkZ false cs = checkS (c ≟ 'S') cs
