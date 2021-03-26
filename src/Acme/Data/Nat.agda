@@ -33,12 +33,12 @@ module _ (P : Elt ℕ → Set)
   induction [ ccs@(c ∷ cs) ] = checkZ (c ≟ 'Z') cs refl where
 
     checkS : ∀ {b} → Reflects c 'S' b → ∀ cs →
-             {{@0 _ : T (b && ℕ cs)}} →
+             {{@0 _ : IsTrue (b && ℕ cs)}} →
              ∀ {ccs} → c ∷ cs ≡ ccs .value → P ccs
     checkS true cs refl = PS [ cs ] (induction [ cs ])
 
     checkZ : ∀ {b} → Reflects c 'Z' b → ∀ cs →
-             {{@0 _ : T (b && isNil cs || isS (c ∷ cs))}} →
+             {{@0 _ : IsTrue (b && isNil cs || isS (c ∷ cs))}} →
              ∀ {ccs} → c ∷ cs ≡ ccs .value → P ccs
     checkZ true  [] refl = P0
     checkZ false cs eq   = checkS (c ≟ 'S') cs eq
@@ -84,8 +84,8 @@ suc-+ m n = refl
     (λ n → cong suc)
     m
 
-+-sym : ∀ m n → m + n ≡ n + m
-+-sym m n =
++-comm : ∀ m n → m + n ≡ n + m
++-comm m n =
   induction
     (λ m → m + n ≡ n + m)
     (sym (+-zero n))

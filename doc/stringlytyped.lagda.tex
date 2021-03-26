@@ -101,16 +101,18 @@ cs ∈ A = IsTrue (A cs)
 
 We can define a convenient wrapper for elements of a given type by packing
 a list of characters together with the proof that it is accepted at that
-type. We use a dependent \AK{record} and make the \ARF{check} field an
-instance argument, that is to say that we never want to have to write these
-proofs explicitly and expect Agda to just automatically pass them around
-without needing our help.
+type. We use a dependent \AK{record} and
+%
+make the \ARF{check} field an erased instance argument, that is to say
+that we never want to have to write these proofs explicitly, expect
+Agda to just automatically pass them around without needing our help,
+and to forget about them when compiling the code.
 
 \begin{code}
 record Elt (A : Type) : Set where
   constructor [_]
-  field value     : List Char
-        {{check}} : value ∈ A
+  field     value     : List Char
+  field @0  {{check}} : value ∈ A
 open Elt
 \end{code}
 
@@ -131,6 +133,9 @@ _∋_ : (A : Type) (str : String) →
 A ∋ str = record { value = unpack str }
 \end{code}
 
+We now have a formal definition of what a type is, what it means for a string
+to be accepted at a given type and what an element of a type looks like.
+Let us look at a concrete example of a type.
 
 \section{Our First Type: ℕ}
 
@@ -181,17 +186,38 @@ open Agda.Builtin.Char
   renaming (primCharEquality to _==_)
 \end{code}
 
-We are now ready to define the type of natural numbers. If the input
-list of characters is non-empty then it may be a natural number. We
-check that it is
-either `Z'-headed and with an empty tail (i.e. zero)
-or `S'-headed and with a tail that is itself a natural number (i.e. successor).
+We are now ready to define the type of natural numbers. A beautiful
+thing about stringly typed programming is that we can assign a very
+precise type to each constructor of a datatype. So we not only define
+the type \AF{ℕ} but also mutually introduce the types \AF{isZ} and
+\AF{isS} of the zero and successor constructors respectively.
 
 \begin{code}
-ℕ : Type
-ℕ (c ∷ cs)  =   c == 'Z' && isNil cs
-            ||  c == 'S' && ℕ cs
-ℕ _ = false
+ℕ    : Type
+isZ  : Type
+isS  : Type
+\end{code}
+
+The type of natural numbers is exactly the union of the type of zero
+and successors.
+
+\begin{code}
+ℕ cs = isZ cs || isS cs
+\end{code}
+
+The types of zero and successor are defined by case analysis on the
+input list of characters. If the list is empty then it does not belong
+to any of these types. If it is non-empty then we check that it is
+either `Z'-headed and with an empty tail for the zero type,
+or `S'-headed and with a tail that is itself a natural number in the
+successor case.
+
+\begin{code}
+isZ [] = false
+isZ (c ∷ cs) = c == 'Z' && isNil cs
+
+isS [] = false
+isS (c ∷ cs) = c == 'S' && ℕ cs
 \end{code}
 
 Unsurprisingly we can define the \AF{zero} and \AF{suc} constructors
@@ -221,12 +247,16 @@ four   = suc three
 We will use these constants again when writing unit tests for the programs
 over natural numbers we are now going to develop.
 
+Now that we have our notion of types, a working example and even some
+inhabitants, it would be nice to be able to do something with them.
+
+
 \section{Stringly Typed Programming}
 
 Being able to construct values of a given type is all well and good but
 we, as programmers, want to be able to take them apart too.
 
-Induction is the dependently typed equivalent of primitive recursion:
+Induction is the dependently typed generalisation of primitive recursion:
 for a predicate \AB{P} on values of type \AF{ℕ},
 if we can prove that {\AB{P} \AF{zero}} holds
 and that for any natural number \AB{n}, if {\AB{P} \AB{n}} holds
@@ -330,18 +360,18 @@ be like.
     where
 
     checkS : ∀ {b} → Reflects c 'S' b → ∀ cs →
-      {{IsTrue (b && ℕ cs)}} →
+      {{@0 _ : IsTrue (b && ℕ cs)}} →
       ∀ {ccs} → c ∷ cs ≡ ccs .value → P ccs
     checkS true cs refl = PS [ cs ] (induction [ cs ])
 
     checkZ : ∀ {b} → Reflects c 'Z' b → ∀ cs →
-      {{IsTrue (b && isNil cs || c == 'S' && ℕ cs)}} →
+      {{@0 _ : IsTrue (b && isNil cs || isS (c ∷ cs))}} →
       ∀ {ccs} → c ∷ cs ≡ ccs .value → P ccs
     checkZ true  [] refl = P0
     checkZ false cs eq   = checkS (c ≟ 'S') cs eq
 \end{code}
 
-A primitive recursion operator is of course not just one that has
+An induction operator is of course not just one that has
 the right type but one that has the right computational behaviour too.
 We can readily check that our \AF{induction} function behaves exactly
 like the primitive recursor on natural numbers ought to by writing two
@@ -372,7 +402,8 @@ that Agda can tell by computation alone that the expressions are equal.
 \subsection{Example: Addition, Multiplication}
 
 As is well known, primitive recursion is enough to implement addition and
-multiplication on the natural numbers.
+multiplication on the natural numbers. So induction will be plenty enough
+power for us.
 
 Addition of \AB{m} to \AB{n} can be implemented by induction on \AB{m}.
 The base case, corresponding to \AF{zero} \AF{+} \AB{n}, amounts to returning
@@ -411,23 +442,48 @@ _ : two * three ≡ four + two
 _ = refl
 \end{code}
 
+Because our \AF{induction} function has the right computational
+behaviour, the definitions we just introduced should be well
+behaved too.
+They did pass a couple of unit tests but given that we are using a
+dependently typed host language we ought to do better than that.
+
 \section{Stringly Typed Proving}
 
-Because our \AF{induction} function has the right computational behaviour,
-the definitions we just introduced should be well behaved too. They did pass
-a couple of unit tests but given that we are using a dependently typed host
-language we ought to be able to prove some of their properties.
+This section is dedicated to proving some of the properties of the
+functions we have defined. We hope to convince the reader that they
+could pick up any proof from the standard library's
+\texttt{Data.Nat.Properties} module and reproduce it on our stringly
+typed natural numbers.
 
 \subsection{Equality combinators}
+
+Now that we are entering serious proof territory,
+we will need to introduce some basic combinators witnessing the
+fundamental properties of propositional equality.
+
+We use a block of variables Agda is authorised to implicitly quantify over
+to avoid repeating ourselves in this section.
 
 \begin{code}
 variable
   A B : Set
   x y z : A
+\end{code}
 
+Propositional equality is a congruence. That is to say that if two values
+are equal, applying the same function to both will yield equal results.
+
+\begin{code}
 cong : (f : A → B) → x ≡ y → f x ≡ f y
 cong f refl = refl
+\end{code}
 
+We already know that propositional equality is a reflexive relation as
+witnessed by its constructor \AIC{refl} and we can additionally prove that
+is is a symmetric and transitive one.
+
+\begin{code}
 sym : x ≡ y → y ≡ x
 sym refl = refl
 
@@ -435,11 +491,13 @@ trans : x ≡ y → y ≡ z → x ≡ z
 trans refl eq = eq
 \end{code}
 
+We now have the basic building blocks needed to build equality proofs.
+
 \subsection{Properties of Addition}
 
 Given our earlier observation that \AF{induction} immediately returns its
 base case when applied to the natural number \AF{zero}, it should not be
-any surprise that the fact that \AF{zero} is trivially a left neutral for
+any surprise that \AF{zero} is trivially a left neutral for
 our definition of addition.
 
 \begin{code}
@@ -448,7 +506,10 @@ zero-+ m = refl
 \end{code}
 
 The proof that it is also a right neutral for addition requires a bit more
-work. We can use \AF{induction} itself to build such a proof.
+work. We can use \AF{induction} itself to build such a proof. The base case
+corresponding to {\AF{zero} \AF{+} \AF{zero} \AD{≡} \AF{zero}} is trivially
+true. The step case is just a matter of using the induction hypothesis together
+with the fact that equality is a congruence to add a \AF{suc} to both sides.
 
 \begin{code}
 +-zero : ∀ m → m + zero ≡ m
@@ -462,15 +523,16 @@ work. We can use \AF{induction} itself to build such a proof.
 Similarly, our previous unit test should lead us to anticipate that the
 proof that the addition of \AF{suc} \AB{m} to \AB{n} is equal to the
 successor of the addition of \AB{m} to \AB{n} is trival. This indeed holds
-true by computation only.
+true by computation alone.
 
 \begin{code}
 suc-+ : ∀ m n → suc m + n ≡ suc (m + n)
 suc-+ m n = refl
 \end{code}
 
-The proof of the statement relating the addition of \AB{m} to \AF{suc} \AB{n}
-to the same value is however a bit more complex.
+The statement stating that the addition of \AB{m} to \AF{suc} \AB{n} is
+equal to the successor of the addition of \AB{m} to \AB{n} is however a bit
+trickier to deal with. It can once again be proven by using induction on \AB{m}.
 
 \begin{code}
 +-suc : ∀ m n → m + suc n ≡ suc (m + n)
@@ -482,15 +544,25 @@ to the same value is however a bit more complex.
     m
 \end{code}
 
+These auxiliary lemmas are the intermediate results we need to be able to
+prove that addition is commutative. We, once again, proceed by induction
+and this time make crucial use of the fact that equality is symmetric and
+transitive.
+
 \begin{code}
-+-sym : ∀ m n → m + n ≡ n + m
-+-sym m n =
++-comm : ∀ m n → m + n ≡ n + m
++-comm m n =
   induction
     (λ m → m + n ≡ n + m)
     (sym (+-zero n))
     (λ m ih → trans (cong suc ih) (sym (+-suc n m)))
     m
+\end{code}
 
+Let us conclude with one last example of a property one can prove of addition
+on stringly natural numbers: addition is associative.
+
+\begin{code}
 +-assoc : ∀ m n p → (m + n) + p ≡ m + (n + p)
 +-assoc m n p =
   induction
@@ -500,30 +572,169 @@ to the same value is however a bit more complex.
     m
 \end{code}
 
+We have seen how we can define a type together with its induction principle,
+and how we can make use of this induction principle to program and prove our
+programs' properties. The next step is to use \AF{induction} on a given type
+to define new types.
+
+\section{Our First Indexed Type: Fin}
+
+Given that the only type we have defined thus far is \AF{ℕ}, we are going to
+use as the index of our type family. The natural candidate is {\AF{Fin} \AB{n}},
+the type of finite numbers strictly smaller than \AB{n}.
+
+This definition proceeds by induction on the index and as such is
+characterised by a base and a step case.
+
+\begin{code}
+Fin : Elt ℕ → Type
+Fin = induction (λ _ → Type) base (λ _ → step)
+
+  where
+\end{code}
+
+In the base case, corresponding to \AF{Fin} \AF{zero}, the boolean function is
+constantly \AIC{false}. The type is empty as there are no finite numbers
+strictly smaller than zero.
+
+\begin{code}
+  base : Type
+  base _ = false
+\end{code}
+
+In the step case, corresponding to {\AF{Fin} (\AF{suc} \AB{n})}
+we recognise a pattern similar to that used in the definition
+of \AF{ℕ}: the string of interest is
+either `Z'-headed with an empty tail
+or `S'-headed with a tail of type \AF{Fin} \AB{n} (this type is
+provided to us by the induction hypothesis called \AB{ih} here).
+
+This time we do not bother introducing separate types for each of the
+constructors but we could very well do so.
+
+\begin{code}
+  step : Type → Type
+  step ih [] = false
+  step ih (c ∷ cs) =  c == 'Z' && isNil cs
+                  ||  c == 'S' && ih cs
+\end{code}
+
+We can once more define the basic constructors for this type. They
+have slightly more complex types, statically enforcing that the return
+index is \AF{suc}-headed. ``Z'' gives rise to \AF{fzero}.
+
+\begin{code}
+fzero : ∀ {n} → Elt (Fin (suc n))
+fzero {n} = Fin (suc n) ∋ "Z"
+\end{code}
+
+And extending an existing list of characters with `S' is enough to
+compute the successor of a \AF{Fin} \AB{n} element as witnessed by
+\AF{fsuc}.
+
+\begin{code}
+fsuc : ∀ {n} → Elt (Fin n) → Elt (Fin (suc n))
+fsuc [ k ] = [ 'S' ∷ k ]
+\end{code}
+
+The definition of the induction principle for \AF{Fin} is left as
+an exercise to the reader. It is very similar to the definition of
+\AF{induction} for \AF{ℕ}. We will focus instead on a more interesting
+observation related to \AF{Fin}.
+
+\subsection{Subtyping: Fin n <: ℕ}
+
+The astute reader will have noticed that the definition of \AF{Fin}
+is not only similar to that of \AF{ℕ}, it should be the case that
+all of the values of type \AF{Fin} \AB{n} are also stringly natural
+number.
+
+This can actually be proven. It should be unsurprising by now that
+our tool of choice in this endeavour will be the induction principle
+for \AF{ℕ}.
+
+The key ingredient is the step case stating that, provided that
+we can already prove that elements of \AF{Fin} \AB{n} are elements
+of \AF{ℕ} then we should be able to do the same for elements of
+\AF{Fin} (\AF{suc} \AB{n}).
+
+\begin{code}
+step : ∀ n → (∀ str → str ∈ Fin n → str ∈ ℕ) →
+             (∀ str → str ∈ Fin (suc n) → str ∈ ℕ)
+step n ih (c ∷ cs) isFin =
+  checkZ (c ≟ 'Z') cs {{isFin}} where
+\end{code}
+
+We include the proof for completness' sake even though it may not
+be illuminating for the Agda novice. It proceeds by case analysis
+on the input string, concluding immediately if it is ``Z'' and
+utilising the induction hypothesis if it is `S'-headed instead.
+
+\begin{code}
+  checkS : ∀ {b} → Reflects c 'S' b → ∀ cs →
+           {{IsTrue (b && Fin n cs)}} →
+           (c ∷ cs) ∈ ℕ
+  checkS true cs {{isFin}} = ih cs isFin
+
+  checkZ : ∀ {b} → Reflects c 'Z' b → ∀ cs →
+    {{IsTrue (b && isNil cs || c == 'S' && Fin n cs)}} →
+    (c ∷ cs) ∈ ℕ
+  checkZ true  [] = _
+  checkZ false cs = checkS (c ≟ 'S') cs
+\end{code}
+
+This can be put together with a trivial base case (remember that
+\AF{Fin} \AF{zero} is the empty type so it cannot have any element
+in it) to obtain the proof \AF{sub}.
+
+\begin{code}
+sub : ∀ n str → str ∈ Fin n → str ∈ ℕ
+sub = induction
+        (λ n → ∀ str → str ∈ Fin n → str ∈ ℕ)
+        (λ _ ())
+        step
+\end{code}
+
+This result allows us to write a \AF{cast} function converting an
+element of \AF{Fin} \AB{n} into a stringly natural number. Notice
+that the \ARF{value} part is the identity. Given that the \ARF{check}
+part of the record will be erased at compile time this means we have
+defined a \emph{zero cost coercion} from \AF{Fin} \AB{n} to \AF{ℕ}
+which is much better than most state of the art dependently typed
+programming languages, save for
+Cedille~\cite{DBLP:journals/corr/abs-1802-00787}.
+
+\begin{code}
+cast : ∀ {n} → Elt (Fin n) → Elt ℕ
+cast {n} p .value = p .value
+cast {n} p .check = sub n (p .value) (p .check)
+\end{code}
+
+
 \section{Conclusion \& Future Work}
 
 We have seen that we can take advantage of a dependently typed
 host language to seriously consider the prospect of safe and
 proven correct stringly typed programming.
 
-We are able to define a notion of type of natural numbers carving out a
+We were able to define a notion of type of natural numbers carving out a
 subset of well structured strings. This type is closed under the usual
 constructors for the natural numbers \AF{zero} and \AF{suc}.
 
 We then proved an induction principle for those strings that represent
-natural numbers. This empowered to start programming over these stringly
+natural numbers. This empowered us to start programming over these stringly
 typed natural numbers in a way that is guaranteed total.
 
-We finally demonstrated that our induction principle is strong enough to
+We demonstrated that our induction principle is strong enough to
 not only program on the stringly typed natural numbers but also to prove the
 fundamental properties of these programs.
 
-\paragraph{Indexed types}
+We finally showed how we can use induction to define new types,
+and how we can take advantage of the fact we are doing dependent
+stringly typed programming to obtain zero cost coercions.
 
-\paragraph{``Coercive'' subtyping}
-
-\paragraph{Parametrised types}
-
+The definition of parametrised types such as the type of linked lists
+or binary trees with values stored at the leaves is left to future work.
 
 \bibliography{main}
 

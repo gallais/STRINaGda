@@ -17,12 +17,12 @@ Type = List Char → Bool
 
 data ⊥ : Set where
 
-T : Bool → Set
-T true = ⊤
-T false = ⊥
+IsTrue : Bool → Set
+IsTrue true = ⊤
+IsTrue false = ⊥
 
 _∈_ : List Char → Type → Set
-x ∈ A = T (A x)
+x ∈ A = IsTrue (A x)
 
 record Elt (A : Type) : Set where
   constructor [_]
